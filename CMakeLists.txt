@@ -5,6 +5,7 @@ project("unchan")
 include(FindPkgConfig)
 
 set(CMAKE_BUILD_TYPE debug)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
 
 find_package(FLTK REQUIRED)
 pkg_check_modules(USB REQUIRED libusb-1.0)
