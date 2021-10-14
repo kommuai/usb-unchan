@@ -2,6 +2,7 @@
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Int_Input.H>
 #include <FL/Fl_Window.H>
 #include <libusb-1.0/libusb.h>
 
@@ -17,6 +18,7 @@
 
 class DevicePanel {
     Fl_Group *group;
+    Fl_Int_Input *txtReq, *txtLen, *txtVal, *txtIdx;
     libusb_device_handle *dev;
     unsigned char rbuf[256];
 public:
@@ -24,9 +26,25 @@ public:
     {
         group = new Fl_Group(40, 60, 520, 300);
         group->box(FL_BORDER_BOX);
-        group->color(fl_lighter(fl_lighter(FL_BLUE)));
+        group->color(fl_lighter(fl_lighter(fl_lighter(FL_BLUE))));
 
-        auto btnSend = new Fl_Button(group->x() + 10, group->y() + 10,
+        txtReq = new Fl_Int_Input(group->x() + 10 + 110, group->y() + 10,
+                                  100, 30,
+                                  "bRequest (HEX):");
+        txtVal = new Fl_Int_Input(group->x() + 10 + 110, txtReq->y() + txtReq->h() + 10,
+                                  100, 30,
+                                  "wValue:");
+        txtIdx = new Fl_Int_Input(group->x() + 10 + 110, txtVal->y() + txtVal->h() + 10,
+                                  100, 30,
+                                  "wIndex:");
+        txtLen = new Fl_Int_Input(group->x() + 10 + 110, txtIdx->y() + txtIdx->h() + 10,
+                                  100, 30,
+                                  "wLength:");
+
+        txtVal->value("0");
+        txtIdx->value("0");
+
+        auto btnSend = new Fl_Button(txtLen->x() + txtLen->w() + 10, txtLen->y(),
                                      100, 30,
                                      "send");
         btnSend->callback(ButtonSend, REFWRAP(*this));
@@ -42,17 +60,36 @@ public:
     static void ButtonSend(Fl_Widget *w, void *p)
     {
         DevicePanel& d = UNWRAP(p, DevicePanel);
-        libusb_control_transfer(d.dev,
-                                LIBUSB_ENDPOINT_IN |
-                                    LIBUSB_REQUEST_TYPE_VENDOR |
-                                    LIBUSB_RECIPIENT_DEVICE,
-                                0xb2,
-                                0,
-                                0,
-                                d.rbuf,
-                                2,
-                                200);
-        std::cout << (int) d.rbuf[0] << ' ' << (int) d.rbuf[1] << std::endl;
+        unsigned int bRequest, wValue, wIndex, wLength;
+        std::istringstream i(d.txtReq->value());
+        i >> std::hex >> bRequest;
+
+        i = std::istringstream(d.txtVal->value());
+        i >> std::dec >> wValue;
+
+        i = std::istringstream(d.txtIdx->value());
+        i >> std::dec >> wIndex;
+
+        i = std::istringstream(d.txtLen->value());
+        i >> std::dec >> wLength;
+
+
+        int rx = libusb_control_transfer(d.dev,
+                                         LIBUSB_ENDPOINT_IN |
+                                            LIBUSB_REQUEST_TYPE_VENDOR |
+                                            LIBUSB_RECIPIENT_DEVICE,
+                                         (uint8_t) bRequest,
+                                         wValue,
+                                         wIndex,
+                                         d.rbuf,
+                                         (uint16_t) wLength,
+                                         200);
+        std::cout << std::setfill('0');
+        for (int i = 0; i < rx; i++) {
+            std::cout << std::setw(2) << std::hex;
+            std::cout << (int) d.rbuf[i] << ' ';
+        }
+        std::cout << std::endl;
     }
 };
 
