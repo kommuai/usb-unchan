@@ -1,6 +1,7 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Choice.H>
+#include <FL/Fl_Group.H>
 #include <FL/Fl_Window.H>
 #include <libusb-1.0/libusb.h>
 
@@ -14,8 +15,48 @@
 #define REFWRAP(x)      new std::reference_wrapper<typeof(x)>(x)
 #define UNWRAP(x, t)    ((std::reference_wrapper<t>*) x)->get()
 
+class DevicePanel {
+    Fl_Group *group;
+    libusb_device_handle *dev;
+    unsigned char rbuf[256];
+public:
+    DevicePanel(libusb_device_handle *h) : dev{h}
+    {
+        group = new Fl_Group(40, 60, 520, 300);
+        group->box(FL_BORDER_BOX);
+        group->color(fl_lighter(fl_lighter(FL_BLUE)));
+
+        auto btnSend = new Fl_Button(group->x() + 10, group->y() + 10,
+                                     100, 30,
+                                     "send");
+        btnSend->callback(ButtonSend, REFWRAP(*this));
+
+        group->end();
+    }
+
+    ~DevicePanel()
+    {
+        libusb_close(dev);
+    }
+
+    static void ButtonSend(Fl_Widget *w, void *p)
+    {
+        DevicePanel& d = UNWRAP(p, DevicePanel);
+        libusb_control_transfer(d.dev,
+                                LIBUSB_ENDPOINT_IN |
+                                    LIBUSB_REQUEST_TYPE_VENDOR |
+                                    LIBUSB_RECIPIENT_DEVICE,
+                                0xb2,
+                                0,
+                                0,
+                                d.rbuf,
+                                2,
+                                200);
+        std::cout << (int) d.rbuf[0] << ' ' << (int) d.rbuf[1] << std::endl;
+    }
+};
+
 class DeviceList {
-private:
     Fl_Choice *combo;
     Fl_Button *button;
     libusb_device **list;
@@ -46,7 +87,7 @@ public:
             unsigned char buf[128] = {};
             libusb_device_descriptor desc;
             libusb_get_device_descriptor(list[i], &desc);
-            libusb_device_handle *h;
+            libusb_device_handle *h = NULL;
             libusb_open(list[i], &h);
             if (h) {
                 libusb_get_string_descriptor_ascii(h, desc.iProduct, buf, 128);
@@ -74,14 +115,17 @@ public:
 
         libusb_device_descriptor desc;
         libusb_get_device_descriptor(d.list[c->value()], &desc);
+        libusb_device_handle *h;
+        libusb_open(d.list[c->value()], &h);
+        libusb_claim_interface(h, 0);
 
-        std::ostringstream o;
-        o << std::hex << std::setfill('0');
-        o << std::setw(4) << desc.idVendor;
-        o << ':';
-        o << std::setw(4) << desc.idProduct;
+        d.combo->parent()->begin();
 
-        std::cout << o.str() << std::endl;
+        if (h)
+            new DevicePanel(h);
+
+        d.combo->parent()->end();
+        d.combo->parent()->redraw();
     }
 };
 
