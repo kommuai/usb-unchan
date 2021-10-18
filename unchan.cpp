@@ -1,22 +1,8 @@
-#include <FL/Fl.H>
-#include <FL/Fl_Button.H>
-#include <FL/Fl_Choice.H>
-#include <FL/Fl_Group.H>
-#include <FL/Fl_Int_Input.H>
-#include <FL/Fl_Window.H>
 #include <libusb-1.0/libusb.h>
 
-#include <functional>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <string>
-
 #define __INTERNAL_UNCHAN_IMPL
+#include "common.hpp"
 #include "visualizer.hpp"
-
-#define REFWRAP(x)      new std::reference_wrapper<typeof(x)>(x)
-#define UNWRAP(x, t)    ((std::reference_wrapper<t>*) x)->get()
 
 /*
  * Development Note

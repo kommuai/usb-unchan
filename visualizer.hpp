@@ -1,12 +1,7 @@
-#include <FL/Fl_Button.H>
-#include <FL/Fl_Pack.H>
-#include <FL/Fl_Scroll.H>
-
-#include <iomanip>
-#include <sstream>
 #include <unordered_map>
 #include <utility>
-#include <vector>
+
+#include "common.hpp"
 
 
 class DataRenderer {
