@@ -1,8 +1,11 @@
+#include <fstream>
 #include <unordered_map>
 #include <utility>
 
 #include "common.hpp"
 
+
+class VisualizerPanel;
 
 class DataRenderer {
     enum Type {
@@ -17,12 +20,16 @@ class DataRenderer {
         Type t;
     };
 
-    std::unordered_map<std::string, Type> const TypeMap;
+    Fl_File_Browser *schemas;
+    VisualizerPanel& Parent;
+    std::unordered_map<std::string, Type> TypeMap;
     std::vector<Spec> specs;
 
 public:
-    DataRenderer();
+    DataRenderer(VisualizerPanel& p);
+    static void SchemaEvent(Fl_Widget *w, void *p);
     void LoadDefaultSpec();
+    void LoadSpec(const char *fn);
     std::vector<std::pair<std::string, int>> Render(const char *buf, int len);
 };
 
@@ -33,6 +40,7 @@ class VisualizerPanel {
     const char *rbuf;
     int width;
     DataRenderer renderer;
+    friend DataRenderer;
 
     void render();
 public:
@@ -44,8 +52,9 @@ public:
 
 #ifdef __INTERNAL_UNCHAN_IMPL
 
-DataRenderer::DataRenderer()
-    : TypeMap{
+DataRenderer::DataRenderer(VisualizerPanel& p)
+    : Parent{p},
+      TypeMap{
         {"CHAR", Type::CHAR},
         {"HEX", Type::HEX},
         {"SIGNED", Type::SIGNED},
@@ -53,6 +62,39 @@ DataRenderer::DataRenderer()
       }
 {
     LoadDefaultSpec();
+
+    Fl_Group *prev = Fl_Group::current();
+
+    auto w = new Fl_Window(300, 500, "SCHEMAS");
+    auto g = new Fl_Pack(0, 0, 300, 500);
+    g->type(Fl_Pack::HORIZONTAL);
+
+    schemas = new Fl_File_Browser(0, 0, 300, 0);
+
+    schemas->load("schemas");
+    schemas->remove(1);
+    schemas->add("--DEFAULT--", NULL);
+    schemas->callback(SchemaEvent, REFWRAP(*this));
+    schemas->type(FL_MULTI_BROWSER);
+
+    g->end();
+    w->end();
+    w->show();
+    prev->begin();
+}
+
+void DataRenderer::SchemaEvent(Fl_Widget *w, void *p)
+{
+    if (!Fl::event_clicks())
+        return;
+    Fl_File_Browser *b = (Fl_File_Browser *) w;
+    DataRenderer& d = UNWRAP(p, DataRenderer);
+
+    if (b->value() == b->size()) // assume last item is --DEFAULT--
+        d.LoadDefaultSpec();
+    else
+        d.LoadSpec(b->text(b->value()));
+    d.Parent.render();
 }
 
 void DataRenderer::LoadDefaultSpec()
@@ -66,10 +108,32 @@ void DataRenderer::LoadDefaultSpec()
     });
 }
 
+void DataRenderer::LoadSpec(const char *fn)
+{
+    std::ifstream f(("schemas/" + std::string(fn)).c_str());
+    if (!f)
+        return;
+
+    specs.clear();
+    while (1) {
+        Spec spec;
+        std::string type;
+        f >> spec.from >> spec.to >> type >> spec.width;
+        if (f.eof()) // we didn't get to read all parts, assume failed
+            break;
+        spec.t = TypeMap[type];
+        specs.push_back(spec);
+    }
+    f.close();
+}
+
 std::vector<std::pair<std::string, int>> DataRenderer::Render(
         const char *buf, int len)
 {
     std::vector<std::pair<std::string, int>> r;
+
+    if (!buf || len == 0)
+        return r;
 
     int i = 0, ctr = -1;
     for (auto s: specs) {
@@ -141,15 +205,16 @@ void VisualizerPanel::render()
     group->size(width, rowCount * 30);
 
     group->end();
-    group->redraw();
+    group->parent()->redraw();
 }
 
-VisualizerPanel::VisualizerPanel() : rlen{0}, rbuf{NULL}, width{490} {}
+VisualizerPanel::VisualizerPanel()
+    : rlen{0}, rbuf{NULL}, width{490}, renderer(*this) {}
 
 void VisualizerPanel::Init()
 {
     auto scroll = new Fl_Scroll(45, 240, width + 10, 110);
-    scroll->box(FL_BORDER_FRAME);
+    scroll->box(FL_BORDER_BOX);
     scroll->type(Fl_Scroll::VERTICAL);
 
     group = new Fl_Pack(45, 240, width, 120);
