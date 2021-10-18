@@ -102,16 +102,17 @@ public:
         group->box(FL_BORDER_BOX);
         group->color(fl_lighter(fl_lighter(fl_lighter(FL_BLUE))));
 
-        txtReq = new Fl_Int_Input(group->x() + 10 + 110, group->y() + 10,
+        int left = group->x() + 10 + 120;
+        txtReq = new Fl_Int_Input(left, group->y() + 10,
                                   100, 30,
                                   "bRequest (HEX):");
-        txtVal = new Fl_Int_Input(group->x() + 10 + 110, txtReq->y() + txtReq->h() + 10,
+        txtVal = new Fl_Int_Input(left, txtReq->y() + txtReq->h() + 10,
                                   100, 30,
                                   "wValue:");
-        txtIdx = new Fl_Int_Input(group->x() + 10 + 110, txtVal->y() + txtVal->h() + 10,
+        txtIdx = new Fl_Int_Input(left, txtVal->y() + txtVal->h() + 10,
                                   100, 30,
                                   "wIndex:");
-        txtLen = new Fl_Int_Input(group->x() + 10 + 110, txtIdx->y() + txtIdx->h() + 10,
+        txtLen = new Fl_Int_Input(left, txtIdx->y() + txtIdx->h() + 10,
                                   100, 30,
                                   "wLength:");
 
@@ -172,7 +173,7 @@ class DeviceList {
 public:
     DeviceList() : combo{NULL}, list{NULL}
     {
-        combo = new Fl_Choice(100, 10, 100, 30, "device:");
+        combo = new Fl_Choice(100, 10, 105, 30, "device:");
         button = new Fl_Button(combo->x() + combo->w() + 10, combo->y(),
                                60, combo->h(),
                                "open");
