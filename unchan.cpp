@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 
+#define __INTERNAL_UNCHAN_IMPL
 #include "visualizer.hpp"
 
 #define REFWRAP(x)      new std::reference_wrapper<typeof(x)>(x)
