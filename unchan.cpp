@@ -3,6 +3,8 @@
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Int_Input.H>
+#include <FL/Fl_Pack.H>
+#include <FL/Fl_Scroll.H>
 #include <FL/Fl_Window.H>
 #include <libusb-1.0/libusb.h>
 
@@ -16,11 +18,83 @@
 #define REFWRAP(x)      new std::reference_wrapper<typeof(x)>(x)
 #define UNWRAP(x, t)    ((std::reference_wrapper<t>*) x)->get()
 
+/*
+ * Development Note
+ *
+ *  - Fl_Widget constructor does not copy label, for dynamic string use
+ *    copy_label().
+ *
+ */
+
+class VisualizerPanel {
+    Fl_Pack *group;
+    int rlen;
+    const char *rbuf;
+    int width;
+
+    void render()
+    {
+        group->clear();
+        group->begin();
+
+        int x = 0, rowCount = 1;
+        Fl_Pack *row = new Fl_Pack(0, 0, width, 30);
+        row->box(FL_NO_BOX);
+        row->type(Fl_Pack::HORIZONTAL);
+        for (int i = 0; i < rlen; i++) {
+            std::ostringstream o;
+            o << std::setw(2) << std::hex << std::setfill('0');
+            o << (int) rbuf[i];
+            if (x + 60 >= width) {
+                row->end();
+                row = new Fl_Pack(0, 0, width, 30);
+                row->box(FL_NO_BOX);
+                row->type(Fl_Pack::HORIZONTAL);
+                x = 0;
+                rowCount++;
+            }
+            auto b = new Fl_Button(0, 0, 60, 30, "");
+            b->copy_label(o.str().c_str());
+            b->box(FL_FLAT_BOX);
+            x += 60;
+        }
+        row->end();
+
+        group->size(width, rowCount * 30);
+
+        group->end();
+        group->redraw();
+    }
+public:
+    VisualizerPanel() : rlen{0}, rbuf{NULL}, width{490} {}
+
+    void Init()
+    {
+        auto scroll = new Fl_Scroll(45, 240, width + 10, 110);
+        scroll->box(FL_BORDER_FRAME);
+        scroll->type(Fl_Scroll::VERTICAL);
+
+        group = new Fl_Pack(45, 240, width, 120);
+        group->end();
+
+        scroll->end();
+    }
+
+    void Set(const char *b, int len)
+    {
+        rbuf = b;
+        rlen = len;
+        render();
+    }
+};
+
 class DevicePanel {
     Fl_Group *group;
     Fl_Int_Input *txtReq, *txtLen, *txtVal, *txtIdx;
     libusb_device_handle *dev;
     unsigned char rbuf[256];
+
+    VisualizerPanel vizPanel;
 public:
     DevicePanel(libusb_device_handle *h) : dev{h}
     {
@@ -48,6 +122,8 @@ public:
                                      100, 30,
                                      "send");
         btnSend->callback(ButtonSend, REFWRAP(*this));
+
+        vizPanel.Init();
 
         group->end();
     }
@@ -84,12 +160,8 @@ public:
                                          d.rbuf,
                                          (uint16_t) wLength,
                                          200);
-        std::cout << std::setfill('0');
-        for (int i = 0; i < rx; i++) {
-            std::cout << std::setw(2) << std::hex;
-            std::cout << (int) d.rbuf[i] << ' ';
-        }
-        std::cout << std::endl;
+
+        d.vizPanel.Set((const char *) d.rbuf, rx);
     }
 };
 
